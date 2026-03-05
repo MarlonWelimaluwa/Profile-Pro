@@ -218,30 +218,29 @@ function extractJSON(text: string): string {
     return cleaned.slice(start, end + 1);
 }
 
-// ── OPENAI GPT-4o-mini CALL ──
+// ── GEMINI 2.5 FLASH CALL ──
 async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY || ''}`,
-        },
-        body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            max_tokens: 4000,
-            temperature: 0.4,
-            response_format: { type: 'json_object' },
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user',   content: userPrompt  },
-            ],
-        }),
-    });
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY || ''}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                generationConfig: {
+                    temperature: 0.4,
+                    maxOutputTokens: 8192,
+                    responseMimeType: 'application/json',
+                },
+            }),
+        }
+    );
 
     const d = await res.json();
-    if (d.error) throw new Error(`OpenAI API error: ${d.error.message || JSON.stringify(d.error)}`);
-    const raw: string = d.choices?.[0]?.message?.content || '';
-    if (!raw) throw new Error('Empty response from AI');
+    if (d.error) throw new Error(`Gemini API error: ${d.error.message || JSON.stringify(d.error)}`);
+    const raw: string = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) throw new Error('Empty response from Gemini');
     return extractJSON(raw);
 }
 
